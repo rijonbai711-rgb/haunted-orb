@@ -1,0 +1,85 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Modal, Pressable, ScrollView, Text, TextInput, TextInputProps, View, ViewStyle, TextStyle } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useApp } from './store';
+
+export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
+  const { C } = useApp();
+  return <View style={[{ backgroundColor: C.card, borderColor: C.ln, borderWidth: 1, borderRadius: 16, padding: 14, marginVertical: 10, marginHorizontal: 12 }, style]}>{children}</View>;
+}
+export const Txt = ({ children, style, ...p }: any) => { const { C } = useApp(); return <Text {...p} style={[{ color: C.tx, fontSize: 14 }, style]}>{children}</Text>; };
+export const Mu = ({ children, style, ...p }: any) => { const { C } = useApp(); return <Text {...p} style={[{ color: C.mu, fontSize: 12 }, style]}>{children}</Text>; };
+export const H2 = ({ children }: any) => <Txt style={{ fontSize: 15, fontWeight: '700', marginBottom: 10 }}>{children}</Txt>;
+export function Row({ children, last, style }: { children: React.ReactNode; last?: boolean; style?: ViewStyle }) {
+  const { C } = useApp();
+  return <View style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 8, borderBottomWidth: last ? 0 : 1, borderBottomColor: C.ln }, style]}>{children}</View>;
+}
+export function Grid({ cols = 2, gap = 8, children }: { cols?: number; gap?: number; children: React.ReactNode }) {
+  const kids = React.Children.toArray(children); const rows: React.ReactNode[][] = [];
+  for (let i = 0; i < kids.length; i += cols) rows.push(kids.slice(i, i + cols));
+  return <View>{rows.map((r, i) => <View key={i} style={{ flexDirection: 'row', gap, marginTop: i ? gap : 0 }}>{r.map((k, j) => <View key={j} style={{ flex: 1 }}>{k}</View>)}</View>)}</View>;
+}
+export function Btn({ t, onPress, pri, style, tstyle }: { t: string; onPress?: () => void; pri?: boolean; style?: ViewStyle; tstyle?: TextStyle }) {
+  const { C } = useApp(); const pad = { paddingVertical: 9, paddingHorizontal: 12, alignItems: 'center' as const };
+  if (pri) return <Pressable onPress={onPress} style={style}><LinearGradient colors={[C.ac, C.ac2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[{ borderRadius: 10 }, pad]}><Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>{t}</Text></LinearGradient></Pressable>;
+  return <Pressable onPress={onPress} style={[{ borderWidth: 1, borderColor: C.ln, borderRadius: 10 }, pad, style]}><Text style={[{ color: C.tx, fontSize: 14 }, tstyle]}>{t}</Text></Pressable>;
+}
+export function Input(p: TextInputProps & { style?: any }) {
+  const { C } = useApp();
+  return <TextInput placeholderTextColor={C.mu} autoCapitalize="none" autoCorrect={false} {...p} style={[{ width: '100%', backgroundColor: C.bg, color: C.tx, borderWidth: 1, borderColor: C.ln, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12, fontSize: 14 }, p.style]} />;
+}
+export function Tog({ on, onPress }: { on: boolean; onPress: () => void }) {
+  const { C } = useApp(); const x = useRef(new Animated.Value(on ? 1 : 0)).current;
+  useEffect(() => { Animated.timing(x, { toValue: on ? 1 : 0, duration: 200, useNativeDriver: true }).start(); }, [on]);
+  return <Pressable onPress={onPress} style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: on ? C.ok : C.ln, ...(on ? { shadowColor: C.ok, shadowOpacity: 1, shadowRadius: 10, shadowOffset: { width: 0, height: 0 }, elevation: 4 } : {}) }}>
+    <Animated.View style={{ position: 'absolute', top: 3, left: 3, width: 18, height: 18, borderRadius: 9, backgroundColor: '#fff', transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: [0, 20] }) }] }} />
+  </Pressable>;
+}
+export function Select({ value, options, onChange, width }: { value: string; options: { v: string; l: string }[]; onChange: (v: string) => void; width?: number }) {
+  const { C } = useApp(); const [o, setO] = useState(false);
+  return <>
+    <Pressable onPress={() => setO(true)} style={{ width: width ?? '100%', backgroundColor: C.bg, borderWidth: 1, borderColor: C.ln, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12, flexDirection: 'row', justifyContent: 'space-between' }}>
+      <Txt>{options.find(x => x.v === value)?.l ?? value}</Txt><Mu>▾</Mu></Pressable>
+    <Modal transparent visible={o} animationType="fade" onRequestClose={() => setO(false)}>
+      <Pressable onPress={() => setO(false)} style={{ flex: 1, backgroundColor: '#0008', justifyContent: 'center', padding: 30 }}>
+        <View style={{ backgroundColor: C.card, borderColor: C.ln, borderWidth: 1, borderRadius: 16, padding: 6 }}>
+          {options.map(x => <Pressable key={x.v} onPress={() => { onChange(x.v); setO(false); }} style={{ padding: 14 }}><Txt style={{ color: x.v === value ? C.ac : C.tx, fontWeight: x.v === value ? '700' : '400' }}>{x.l}</Txt></Pressable>)}
+        </View></Pressable></Modal></>;
+}
+export function Toast() {
+  const { s, C } = useApp(); if (!s.toast) return null;
+  return <View pointerEvents="none" style={{ position: 'absolute', alignSelf: 'center', bottom: 90, backgroundColor: C.card, borderColor: C.ac, borderWidth: 1, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, zIndex: 9 }}><Txt>{s.toast}</Txt></View>;
+}
+/* prompt()/confirm() replacement */
+type D = { kind: 'p' | 'c'; label: string; def?: string; res: (v: any) => void } | null;
+let setD: (d: D) => void = () => {};
+export const dialog = {
+  prompt: (label: string, def = '') => new Promise<string | null>(res => setD({ kind: 'p', label, def, res })),
+  confirm: (label: string) => new Promise<boolean>(res => setD({ kind: 'c', label, res })),
+};
+export function DialogHost() {
+  const { C } = useApp(); const [d, sd] = useState<D>(null); const [v, setV] = useState('');
+  useEffect(() => { setD = x => { sd(x); setV(x?.def ?? ''); }; }, []);
+  const close = (r: any) => { const x = d; sd(null); x?.res(r); };
+  return <Modal transparent visible={!!d} animationType="fade" onRequestClose={() => close(d?.kind === 'c' ? false : null)}>
+    <View style={{ flex: 1, backgroundColor: '#000a', justifyContent: 'center', padding: 24 }}>
+      <View style={{ backgroundColor: C.card, borderColor: C.ln, borderWidth: 1, borderRadius: 16, padding: 16 }}>
+        <Txt style={{ marginBottom: 10 }}>{d?.label}</Txt>
+        {d?.kind === 'p' && <Input value={v} onChangeText={setV} autoFocus />}
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+          <Btn t="Cancel" style={{ flex: 1 }} onPress={() => close(d?.kind === 'c' ? false : null)} />
+          <Btn t="OK" pri style={{ flex: 1 }} onPress={() => close(d?.kind === 'c' ? true : v)} />
+        </View></View></View></Modal>;
+}
+/** Looping 0→1 animation (CSS @keyframes equivalent). */
+export function useLoop(dur: number, o: { delay?: number; linear?: boolean; pingpong?: boolean } = {}) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    v.setValue(0);
+    const t = (to: number) => Animated.timing(v, { toValue: to, duration: o.pingpong ? dur / 2 : dur, easing: o.linear ? Easing.linear : o.pingpong ? Easing.inOut(Easing.ease) : Easing.out(Easing.quad), useNativeDriver: true });
+    const loop = Animated.loop(o.pingpong ? Animated.sequence([t(1), t(0)]) : t(1), { resetBeforeIteration: true });
+    const a = o.delay ? Animated.sequence([Animated.delay(o.delay), loop]) : loop; a.start(); return () => a.stop();
+  }, [dur]);
+  return v;
+}
+export const Page = ({ children }: { children: React.ReactNode }) => <ScrollView contentContainerStyle={{ paddingBottom: 12 }} keyboardShouldPersistTaps="handled">{children}</ScrollView>;

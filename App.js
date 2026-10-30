@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Smart Router",
+    "slug": "smart-router",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.example.smartrouter",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Used to talk to your router on the local network.",
+        "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": true }
+      }
+    },
+    "android": { "package": "com.example.smartrouter" },
+    "plugins": [["expo-build-properties", { "android": { "usesCleartextTraffic": true } }]]
+  }
+}
+  

@@ -1,0 +1,93 @@
+import React from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
+import { Btn, Card, Grid, H2, Mu, Row, Tog, Txt, useLoop } from '../ui';
+import { useApp } from '../store';
+import { Client, ConnType, fmt, rateTxt } from '../types';
+
+const grp = (t: ConnType, C: any) => t === 'Wi-Fi 5 GHz' ? C.ac : t === 'LAN' ? C.ok : C.ac2;
+
+function Meter() {
+  const { s, C } = useApp(); const p1 = useLoop(2000), p2 = useLoop(2000, { delay: 1000 });
+  const wave = (v: Animated.Value, col: string) => <Animated.View pointerEvents="none" style={{ position: 'absolute', width: 124, height: 124, borderRadius: 62, borderWidth: 1, borderColor: col,
+    transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 100 / 62] }) }], opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.7, 0] }) }} />;
+  const len = Math.min(s.snap.speed, 900) / 900 * 377;
+  return <View style={{ width: 210, height: 210, alignItems: 'center', justifyContent: 'center' }}>
+    {wave(p1, C.ac)}{wave(p2, C.ac2)}
+    <Svg width={210} height={210} viewBox="0 0 210 210" style={StyleSheet.absoluteFill}>
+      <Circle cx={105} cy={105} r={60} fill="none" stroke={C.ln} strokeWidth={8} />
+      <Circle cx={105} cy={105} r={60} fill="none" stroke={C.ac} strokeWidth={15} opacity={0.18} strokeLinecap="round" rotation={-90} origin="105,105" strokeDasharray={`${len} 377`} />
+      <Circle cx={105} cy={105} r={60} fill="none" stroke={C.ac} strokeWidth={8} strokeLinecap="round" rotation={-90} origin="105,105" strokeDasharray={`${len} 377`} />
+    </Svg>
+    <View style={{ alignItems: 'center' }}><Txt style={{ fontSize: 30, fontWeight: '700' }}>{s.snap.speed}</Txt><Mu>KBps</Mu></View>
+  </View>;
+}
+
+function Dev({ c, ang, rev }: { c: Client; ang: number; rev: Animated.AnimatedInterpolation<string> }) {
+  const { C, a, nm } = useApp(); const r = c.blocked ? 0 : c.rate, hot = r >= 150, col = hot ? C.bad : grp(c.type, C);
+  const dur = c.blocked ? 20000 : hot ? Math.max(0.45, 1.2 - (r - 150) / 300) * 1000 : 2000;
+  const w = useLoop(dur);
+  return <View style={{ position: 'absolute', left: 155 - 23, top: 155 - 23, width: 46, height: 46, transform: [{ rotate: `${ang}deg` }, { translateX: 132 }, { rotate: `-${ang}deg` }] }}>
+    <Animated.View style={{ width: 46, height: 46, transform: [{ rotate: rev }] }}>
+      <Animated.View pointerEvents="none" style={{ position: 'absolute', width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: col,
+        transform: [{ scale: w.interpolate({ inputRange: [0, 1], outputRange: [1, 2.2] }) }], opacity: w.interpolate({ inputRange: [0, 1], outputRange: [0.8, 0] }) }} />
+      <Pressable onPress={() => a.blk(c.mac)} style={{ width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: col, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+        opacity: c.blocked ? 0.35 : 1, shadowColor: col, shadowOpacity: 1, shadowRadius: hot ? 16 : 10, shadowOffset: { width: 0, height: 0 }, elevation: 3 }}>
+        <Text style={{ fontSize: 15, lineHeight: 17 }}>{c.type === 'LAN' ? '💻' : '📱'}</Text>
+        <Text numberOfLines={1} style={{ fontSize: 8, fontWeight: '700', maxWidth: 44, color: hot ? C.bad : C.tx }}>{rateTxt(r)}</Text>
+      </Pressable>
+      <View pointerEvents="none" style={{ position: 'absolute', top: 48, left: -27, width: 100, alignItems: 'center' }}><Text style={{ fontSize: 8, color: C.mu }}>{nm(c).split(' ')[0]}</Text></View>
+    </Animated.View>
+  </View>;
+}
+
+function Orbit() {
+  const { s, C } = useApp(); const spin = useLoop(40000, { linear: true }); const cl = s.snap.clients;
+  const rot = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }), rev = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-360deg'] });
+  return <>
+    <View pointerEvents="none" style={{ position: 'absolute', width: 264, height: 264, borderRadius: 132, borderWidth: 1, borderStyle: 'dashed', borderColor: C.ln }} />
+    <Animated.View pointerEvents="box-none" style={{ position: 'absolute', width: 310, height: 310, transform: [{ rotate: rot }] }}>
+      {cl.map((c, i) => <Dev key={c.mac} c={c} ang={360 / cl.length * i} rev={rev} />)}
+    </Animated.View>
+  </>;
+}
+
+function Band({ label, k, col }: { label: string; k: ConnType; col: string }) {
+  const { s, C } = useApp(); const v = s.stats[k], L = s.snap.clients.filter(c => c.type === k && !c.blocked);
+  return <View style={{ backgroundColor: C.bg, borderRadius: 12, padding: 10, alignItems: 'center' }}>
+    <Svg viewBox="0 0 100 100" width={80} height={80}>
+      <Circle cx={50} cy={50} r={40} fill="none" stroke={C.ln} strokeWidth={7} />
+      <Circle cx={50} cy={50} r={40} fill="none" stroke={col} strokeWidth={7} strokeLinecap="round" rotation={-90} origin="50,50" strokeDasharray={`${Math.min((v[0] + v[1]) / (2e9), 1) * 251} 251`} />
+      <Text />
+    </Svg>
+    <View style={{ position: 'absolute', top: 10, height: 80, justifyContent: 'center', alignItems: 'center' }}>
+      <Txt style={{ fontSize: 13, fontWeight: '700' }}>{label.split(' ')[0]}</Txt><Mu style={{ fontSize: 10 }}>{k === 'LAN' ? 'wired' : 'GHz'}</Mu></View>
+    <Mu>⬆ {fmt(v[1])}</Mu><Mu>⬇ {fmt(v[0])}</Mu>
+    <Mu>{L.length} dev · {Math.round(L.reduce((x, c) => x + c.rate, 0))} KB/s</Mu>
+  </View>;
+}
+
+export default function Home() {
+  const { s, C, a } = useApp(); const R = s.router!, sn = s.snap;
+  const Metric = ({ v, l }: { v: string; l: string }) => <View style={{ backgroundColor: C.bg, borderRadius: 12, padding: 10, alignItems: 'center' }}><Txt style={{ fontSize: 18, fontWeight: '700', color: C.ac }}>{v}</Txt><Txt>{l}</Txt></View>;
+  return <>
+    <Card style={{ alignItems: 'center' }}>
+      <Mu>{R.brand} {R.model} · {s.session!.gw}</Mu>
+      <View style={{ height: 330, width: '100%', marginVertical: 4, alignItems: 'center', justifyContent: 'center' }}><Orbit /><Meter /></View>
+      <Mu style={{ textAlign: 'center' }}>Devices orbit the meter · tap one to block/unblock - red fast pulse = heavy use (150+ KB/s)</Mu>
+      <View style={{ width: '100%', marginTop: 10 }}><Grid><Metric v={sn.cpu + '%'} l="CPU" /><Metric v={sn.ram + '%'} l="RAM" /><Metric v={sn.ping + ' ms'} l="Ping" /><Metric v={sn.sig + '%'} l="Signal" /></Grid></View>
+    </Card>
+    <Card>
+      <Grid><Btn t="🔄 Restart" onPress={a.reboot} /><Btn t="⚙️ Settings" onPress={() => a.go('tools')} /></Grid>
+      <Btn t="🚫 Blocks" style={{ marginTop: 8 }} onPress={() => a.go('clients')} />
+    </Card>
+    <Card><Row last><Txt>👥 Guest Wi-Fi</Txt><Tog on={!!s.cfg?.guest} onPress={a.setGuest} /></Row></Card>
+    <Card><H2>Connection groups</H2>
+      <Grid cols={3}><Band label="5 GHz" k="Wi-Fi 5 GHz" col={C.ac} /><Band label="2.4 GHz" k="Wi-Fi 2.4 GHz" col={C.ac2} /><Band label="LAN" k="LAN" col={C.ok} /></Grid></Card>
+    <Card><H2>Traffic</H2>
+      <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: C.ln, paddingVertical: 6 }}><Mu style={{ flex: 1 }}> </Mu><Mu style={{ flex: 1.2, textAlign: 'right' }}>⬆ Upload</Mu><Mu style={{ flex: 1.2, textAlign: 'right' }}>⬇ Download</Mu></View>
+      {(['LAN', 'Internet'] as const).map(k => <View key={k} style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: C.ln, paddingVertical: 6 }}>
+        <Txt style={{ flex: 1, fontSize: 12 }}>{k}</Txt><Txt style={{ flex: 1.2, fontSize: 12, textAlign: 'right' }}>{fmt(s.stats[k][1])}</Txt><Txt style={{ flex: 1.2, fontSize: 12, textAlign: 'right' }}>{fmt(s.stats[k][0])}</Txt></View>)}
+      <Mu style={{ marginTop: 8 }}>Data is reset when the router is restarted or after 4GB traffic.</Mu></Card>
+  </>;
+}
